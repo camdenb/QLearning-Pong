@@ -2,30 +2,39 @@ local matrix = require 'matrix'
 
 
 local borderVerticalOffset = 10
-local borderHorizontalOffset = 20
+local borderHorizontalOffset = 30
 
 local paddleHeight = 100
 local paddleWidth = 25
 local paddleSpeed = 500
 
-local gameSpeed = 2
+local gameSpeed = 5
 
 local numberSuccess = 0
 
 local Q = nil
-local LEARNINGRATE = 0.7
+local LEARNINGRATE = 0.4
 local DISCOUNT = 0.999
 local ACTIONS = {'UP', 'DOWN'}
 local CURSTATE = {x = 0, y = 0}
 local LASTSTATE = nil
 local LASTACTION = nil
 
+local DEFAULT_REWARD = 1
+
 local tickCounter = 0
-local tickUpdateCount = gameSpeed / 100
+local tickUpdateCount = gameSpeed / 1000
 
 local generation = 1
 
+local dateString = ""
+
 function love.load()
+
+	dateString = os.date('%m-%d-%Y_%I%p-%M%S')
+	love.filesystem.append('data-' .. dateString .. '.txt', 'LEARNINGRATE: ' .. LEARNINGRATE .. ' DISCOUNT: ' .. DISCOUNT .. '\n\n')
+
+	print('LEARNINGRATE: ' .. LEARNINGRATE .. ' DISCOUNT: ' .. DISCOUNT .. ' DEFAULT REWARD: ' .. DEFAULT_REWARD .. '\n\n')
 
 	WINDOW_HEIGHT = 500
 	WINDOW_WIDTH = 500
@@ -119,6 +128,9 @@ function love.draw()
 	love.graphics.rectangle('fill', ball.x, ball.y, ball.size, ball.size)
 	love.graphics.print('Generation: ' .. generation, WINDOW_WIDTH / 2, 25)
 	love.graphics.print('Game Speed: ' .. gameSpeed, WINDOW_WIDTH / 2, 50)
+	love.graphics.setColor(255, 200, 200, 200)
+	love.graphics.rectangle('fill', CURSTATE.x, CURSTATE.y, 10, 10)
+	love.graphics.setColor(255, 255, 255)
 end
 
 function love.resize(w, h)
@@ -183,8 +195,8 @@ end
 function tick()
 	LASTSTATE = CURSTATE
 	LASTACTION = CURACTION
-	CURSTATE.x = math.floor(ball.x)
-	CURSTATE.y = math.floor(ball.y)
+	CURSTATE.x = math.floor(ball.x / (ball.size * 2))
+	CURSTATE.y = math.floor(ball.y / (ball.size * 2))
 	CURACTION = getBestAction()
 	if CURACTION and CURSTATE and LASTSTATE and LASTACTION then
 		setQBasedOnAlgo(CURSTATE, CURACTION, LASTSTATE, LASTACTION)
@@ -264,11 +276,11 @@ end
 
 function getRewardFromState(CURSTATE)
 	if isBallOutOfBoundsLeft(CURSTATE.x) then
-		return -1000
+		return -2000
 	elseif isBallOutOfBoundsRight(CURSTATE.x) then
 		return 1000
 	else
-		return 1
+		return DEFAULT_REWARD
 	end
 end
 
@@ -294,6 +306,7 @@ function nextGeneration()
 	love.graphics.setBackgroundColor(0, 0, 0)
 
 	print('Success Percent:', (numberSuccess / generation))
+	love.filesystem.append('data-' .. dateString .. '.txt', (numberSuccess / generation) .. ',')
 
 	generation = generation + 1
 	ballReset()
